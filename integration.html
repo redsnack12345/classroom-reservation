@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>정동고 교실 대여 시스템</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f0f2f5;
+      padding: 100px 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .success {
+      text-align: center;
+      color: green;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🔐 로그인 화면 -->
+  <div id="loginPage" class="container">
+    <h1>로그인</h1>
+    <label for="username">이름</label>
+    <input type="text" id="username" required>
+
+    <label for="role">역할</label>
+    <select id="role">
+      <option value="student">학생</option>
+      <option value="teacher">선생님</option>
+    </select>
+
+    <button onclick="login()">로그인</button>
+  </div>
+
+  <!-- 🧑‍🎓 학생 신청서 -->
+  <div id="studentPage" class="container hidden">
+    <h2>교실 대여 신청서</h2>
+    <form id="rentalForm">
+      <label for="name">이름</label>
+      <input type="text" id="name" required readonly>
+
+      <label for="studentId">학번</label>
+      <input type="text" id="studentId" required>
+
+      <label for="date">사용 날짜</label>
+      <input type="date" id="date" required>
+
+      <label for="time">사용 시간</label>
+      <input type="text" id="time" placeholder="예: 오후 2시 ~ 4시" required>
+
+      <label for="purpose">사용 목적</label>
+      <textarea id="purpose" rows="3" required></textarea>
+
+      <button type="submit">신청하기</button>
+      <p class="success" id="successMessage" style="display:none;">신청이 완료되었습니다!</p>
+    </form>
+  </div>
+
+  <!-- 🧑‍🏫 선생님 관리자 페이지 -->
+  <div id="adminPage" class="container hidden">
+    <h2>신청 내역 목록</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>학번</th>
+          <th>날짜</th>
+          <th>시간</th>
+          <th>목적</th>
+        </tr>
+      </thead>
+      <tbody id="rentalList">
+        <!-- 신청 내역 로드 -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxVz3mxzXixS_r_BXmtunF-ABdPNXFI2_Rn4wOimP8BjNIWwx2wGPTnSivyLUNkHKC4/exec";
+
+    function login() {
+      const username = document.getElementById("username").value;
+      const role = document.getElementById("role").value;
+
+      if (!username) {
+        alert("이름을 입력해주세요.");
+        return;
+      }
+
+      document.getElementById("loginPage").classList.add("hidden");
+
+      if (role === "student") {
+        document.getElementById("studentPage").classList.remove("hidden");
+        document.getElementById("name").value = username;
+      } else {
+        document.getElementById("adminPage").classList.remove("hidden");
+        showRentalList();
+      }
+    }
+
+    document.getElementById("rentalForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const data = {
+        name: document.getElementById("name").value,
+        studentId: document.getElementById("studentId").value,
+        date: document.getElementById("date").value,
+        time: document.getElementById("time").value,
+        purpose: document.getElementById("purpose").value
+      };
+
+      fetch(scriptURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(res => {
+        if (res.ok) {
+          document.getElementById("successMessage").style.display = "block";
+          document.getElementById("rentalForm").reset();
+        } else {
+          alert("신청 실패: 서버 오류");
+        }
+      })
+      .catch(err => {
+        console.error("전송 오류:", err);
+        alert("전송 실패: 인터넷 연결 또는 서버 오류");
+      });
+    });
+
+    function showRentalList() {
+      const tableBody = document.getElementById("rentalList");
+      tableBody.innerHTML = "<tr><td colspan='5'>불러오는 중...</td></tr>";
+
+      fetch(scriptURL)
+        .then(res => res.json())
+        .then(data => {
+          tableBody.innerHTML = "";
+
+          if (data.length === 0) {
+            tableBody.innerHTML = "<tr><td colspan='5'>신청 내역이 없습니다.</td></tr>";
+          } else {
+            data.forEach(item => {
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.studentId}</td>
+                <td>${item.date}</td>
+                <td>${item.time}</td>
+                <td>${item.purpose}</td>
+              `;
+              tableBody.appendChild(row);
+            });
+          }
+        })
+        .catch(err => {
+          console.error("목록 불러오기 실패:", err);
+          tableBody.innerHTML = "<tr><td colspan='5'>목록을 불러오지 못했습니다.</td></tr>";
+        });
+    }
+  </script>
+</body>
+</html>
